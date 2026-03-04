@@ -286,6 +286,7 @@ function copyConfig() {
 document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.activeElement.tagName === 'INPUT') generateConfig();
 });
+document.addEventListener('contextmenu', e => e.preventDefault());
 </script>
 </body>
 </html>
