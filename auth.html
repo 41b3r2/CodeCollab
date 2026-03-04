@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — CodeCollab</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/lib/fontawesome/css/all.min.css">
+
+    <!-- Firebase Auth -->
+    <script src="assets/lib/firebase/firebase-app-compat.js"></script>
+    <script src="assets/lib/firebase/firebase-auth-compat.js"></script>
+    <script src="assets/lib/firebase/firebase-database-compat.js"></script>
+    <script src="assets/js/firebase-config.js"></script>
+
+    <!-- React 18 + Babel -->
+    <script src="assets/lib/react/react.production.min.js" crossorigin></script>
+    <script src="assets/lib/react/react-dom.production.min.js" crossorigin></script>
+    <script src="assets/lib/react/babel.min.js"></script>
+</head>
+<body class="lobby-body">
+
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const PRESETS = ['#00d4ff','#8957ff','#22c55e','#f43f5e','#fb923c','#fbbf24','#e879f9','#38bdf8'];
+
+function ColorPicker({ value, onChange }) {
+    return (
+        <div className="color-picker-row">
+            <input type="color" value={value} className="color-input"
+                onChange={e => onChange(e.target.value)} />
+            <div className="color-presets">
+                {PRESETS.map(c => (
+                    <span key={c} className={'color-dot' + (value === c ? ' active' : '')}
+                        style={{ background: c }} onClick={() => onChange(c)} />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function App() {
+    // Read optional redirect param
+    const redirectTo = new URLSearchParams(location.search).get('redirect') || 'index.html';
+
+    const [tab,        setTab]        = useState('login');
+    const [email,      setEmail]      = useState('');
+    const [password,   setPassword]   = useState('');
+    const [confirmPass,setConfirmPass] = useState('');
+    const [fullName,   setFullName]   = useState('');
+    const [showPass,   setShowPass]   = useState(false);
+    const [showConfirm,setShowConfirm] = useState(false);
+    const [loading,    setLoading]    = useState(false);
+    const [error,      setError]      = useState('');
+    const [success,    setSuccess]    = useState('');
+
+    // Prevents onAuthStateChanged from redirecting mid-registration
+    const isRegistering = useRef(false);
+
+    // If already logged in, redirect immediately
+    useEffect(() => {
+        const unsub = firebase.auth().onAuthStateChanged(u => {
+            if (u && !isRegistering.current) window.location.replace(redirectTo);
+        });
+        return () => unsub();
+    }, []);
+
+    function clearMsg() { setError(''); setSuccess(''); }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        clearMsg();
+        if (!email.trim() || !password)  { setError('Email and password are required.'); return; }
+        setLoading(true);
+        try {
+            await firebase.auth().signInWithEmailAndPassword(email.trim(), password);
+            // onAuthStateChanged will redirect
+        } catch (err) {
+            setError(friendlyError(err.code));
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleRegister(e) {
+        e.preventDefault();
+        clearMsg();
+        if (!fullName.trim())    { setError('Full name is required.');                  return; }
+        if (fullName.trim().length < 2) { setError('Full name must be at least 2 characters.'); return; }
+        if (!email.trim())       { setError('Email is required.');                      return; }
+        if (password.length < 6) { setError('Password must be at least 6 characters.'); return; }
+        if (password !== confirmPass) { setError('Passwords do not match.');            return; }
+        setLoading(true);
+        isRegistering.current = true;  // block onAuthStateChanged redirect
+        try {
+            const cred = await firebase.auth().createUserWithEmailAndPassword(email.trim(), password);
+            const user = cred.user;
+
+            // Update Firebase Auth display name to full name
+            try { await user.updateProfile({ displayName: fullName.trim() }); } catch (_) {}
+
+            // Save profile to Realtime DB
+            // fullName = real name (from registration, permanent)
+            // username = room display name (defaults to fullName, can be changed per room)
+            try {
+                await firebase.database().ref('users/' + user.uid + '/profile').set({
+                    fullName:  fullName.trim(),
+                    username:  fullName.trim(),   // default room name = full name until user changes it
+                    color:     '#00d4ff',
+                    email:     email.trim(),
+                    createdAt: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (dbErr) {
+                console.warn('[CodeCollab] Could not save profile to DB:', dbErr.message,
+                    '\nFix: add a rule for "users" in your Firebase Realtime DB rules.');
+            }
+
+            // All done — navigate manually
+            isRegistering.current = false;
+            window.location.replace(redirectTo);
+        } catch (err) {
+            isRegistering.current = false;
+            setError(friendlyError(err.code, err.message));
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function friendlyError(code, rawMsg) {
+        const map = {
+            'auth/user-not-found':        'No account found with this email.',
+            'auth/wrong-password':        'Incorrect password.',
+            'auth/email-already-in-use':  'An account with this email already exists.',
+            'auth/invalid-email':         'Invalid email address.',
+            'auth/weak-password':         'Password must be at least 6 characters.',
+            'auth/too-many-requests':     'Too many attempts. Try again later.',
+            'auth/invalid-credential':    'Invalid email or password.',
+            'auth/network-request-failed':'Network error. Check your connection.',
+            'auth/operation-not-allowed':      'Email/password sign-in is not enabled. Go to Firebase Console → Authentication → Sign-in method → Enable Email/Password.',
+            'auth/configuration-not-found':    'Firebase Authentication is not set up. Go to Firebase Console → Authentication → click "Get started" → enable Email/Password sign-in.',
+            'auth/internal-error':             'Firebase internal error. Check that Authentication is enabled in your Firebase Console.',
+        };
+        return map[code] || (rawMsg ? rawMsg : 'Something went wrong. Please try again. (code: ' + code + ')');
+    }
+
+    function switchTab(t) { setTab(t); clearMsg(); }
+
+    return (
+        <div className="auth-page-wrap">
+            {/* Background particles */}
+            <div className="bg-particles">
+                {Array.from({length:12},(_,i)=>(
+                    <div key={i} className="particle" style={{
+                        left: (i*8+4)+'%',
+                        animationDelay: (i*0.7)+'s',
+                        animationDuration: (10+i*1.5)+'s',
+                        width: (2+i%4)+'px', height: (2+i%4)+'px'
+                    }}/>
+                ))}
+            </div>
+
+            <div className="auth-card-outer">
+                {/* Logo */}
+                <div className="auth-logo">
+                    <div className="logo-icon" style={{width:44,height:44,fontSize:18}}>
+                        <i className="fa-solid fa-code"></i>
+                    </div>
+                    <div className="logo-text">
+                        <span className="logo-name" style={{fontSize:20}}>CodeCollab</span>
+                        <span className="logo-tagline">Real-Time Collaborative IDE</span>
+                    </div>
+                </div>
+
+                <div className="auth-card">
+                    {/* Tabs */}
+                    <div className="tab-switcher" style={{marginBottom:24}}>
+                        <button className={'tab-btn'+(tab==='login'?' active':'')} onClick={()=>switchTab('login')}>
+                            <i className="fa-solid fa-right-to-bracket"></i> Sign In
+                        </button>
+                        <button className={'tab-btn'+(tab==='register'?' active':'')} onClick={()=>switchTab('register')}>
+                            <i className="fa-solid fa-user-plus"></i> Create Account
+                        </button>
+                    </div>
+
+                    {error   && <div className="error-msg"  style={{marginBottom:14}}><i className="fa-solid fa-circle-exclamation"></i> {error}</div>}
+                    {success && <div className="success-msg" style={{marginBottom:14}}><i className="fa-solid fa-circle-check"></i> {success}</div>}
+
+                    {/* ── LOGIN ── */}
+                    {tab === 'login' && (
+                        <form className="auth-form" onSubmit={handleLogin}>
+                            <div className="form-group">
+                                <label><i className="fa-solid fa-envelope"></i> Email</label>
+                                <input type="email" placeholder="you@example.com" autoFocus
+                                    value={email} onChange={e=>setEmail(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                                <label><i className="fa-solid fa-lock"></i> Password</label>
+                                <div className="pass-wrap">
+                                    <input type={showPass?'text':'password'} placeholder="Enter password"
+                                        value={password} onChange={e=>setPassword(e.target.value)} />
+                                    <button type="button" className="pass-toggle" onClick={()=>setShowPass(p=>!p)}>
+                                        <i className={showPass?'fa-solid fa-eye-slash':'fa-solid fa-eye'}></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="submit" className="btn-primary" disabled={loading}
+                                style={{opacity:loading?.7:1,cursor:loading?'not-allowed':'pointer'}}>
+                                {loading
+                                    ? <><i className="fa-solid fa-spinner fa-spin"></i> Signing in...</>
+                                    : <><i className="fa-solid fa-right-to-bracket"></i> Sign In</>
+                                }
+                            </button>
+                            <div className="switch-hint">
+                                Don't have an account? <a href="#" onClick={e=>{e.preventDefault();switchTab('register')}}>Create one</a>
+                            </div>
+                        </form>
+                    )}
+
+                    {/* ── REGISTER ── */}
+                    {tab === 'register' && (
+                        <form className="auth-form" onSubmit={handleRegister}>
+                            <div className="form-group">
+                                <label><i className="fa-solid fa-id-card"></i> Full Name</label>
+                                <input type="text" placeholder="e.g. Juan dela Cruz" maxLength={60} autoFocus
+                                    value={fullName} onChange={e=>setFullName(e.target.value)} />
+                                <span className="field-hint">Your real name — used for your account profile.</span>
+                            </div>
+                            <div className="form-group">
+                                <label><i className="fa-solid fa-envelope"></i> Email</label>
+                                <input type="email" placeholder="you@example.com"
+                                    value={email} onChange={e=>setEmail(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                                <label><i className="fa-solid fa-lock"></i> Password</label>
+                                <div className="pass-wrap">
+                                    <input type={showPass?'text':'password'} placeholder="Min. 6 characters"
+                                        value={password} onChange={e=>setPassword(e.target.value)} />
+                                    <button type="button" className="pass-toggle" onClick={()=>setShowPass(p=>!p)}>
+                                        <i className={showPass?'fa-solid fa-eye-slash':'fa-solid fa-eye'}></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label><i className="fa-solid fa-lock"></i> Confirm Password</label>
+                                <div className="pass-wrap">
+                                    <input type={showConfirm?'text':'password'} placeholder="Re-enter password"
+                                        value={confirmPass} onChange={e=>setConfirmPass(e.target.value)} />
+                                    <button type="button" className="pass-toggle" onClick={()=>setShowConfirm(p=>!p)}>
+                                        <i className={showConfirm?'fa-solid fa-eye-slash':'fa-solid fa-eye'}></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="reg-note">
+                                <i className="fa-solid fa-circle-info"></i>
+                                You can set your <strong>room display name</strong> and <strong>cursor color</strong> later when you create or join a room.
+                            </div>
+                            <button type="submit" className="btn-primary" disabled={loading}
+                                style={{background:'linear-gradient(135deg,#8957ff,#6366f1)',opacity:loading?.7:1,cursor:loading?'not-allowed':'pointer'}}>
+                                {loading
+                                    ? <><i className="fa-solid fa-spinner fa-spin"></i> Creating account...</>
+                                    : <><i className="fa-solid fa-user-plus"></i> Create Account</>
+                                }
+                            </button>
+                            <div className="switch-hint">
+                                Already have an account? <a href="#" onClick={e=>{e.preventDefault();switchTab('login')}}>Sign in</a>
+                            </div>
+                        </form>
+                    )}
+                </div>
+
+                <div className="auth-footer">
+                    <i className="fa-brands fa-google" style={{color:'#ea4335'}}></i> Firebase Auth
+                    &nbsp;·&nbsp;
+                    <i className="fa-solid fa-shield-halved" style={{color:'var(--accent)'}}></i> Encrypted
+                    &nbsp;·&nbsp;
+                    <i className="fa-solid fa-bolt" style={{color:'var(--warning)'}}></i> Instant
+                </div>
+            </div>
+        </div>
+    );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Setup — CodeCollab</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/lib/fontawesome/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0d1117; --bg2: #161b22; --bg3: #1c2128;
+            --border: #30363d; --text: #e6edf3; --muted: #8b949e;
+            --accent: #00d4ff; --accent2: #8957ff;
+            --success: #22c55e; --error: #f43f5e; --warn: #fb923c;
+            --mono: 'JetBrains Mono', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; }
+        a { color: var(--accent); }
+        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg2); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+        .page { max-width: 860px; margin: 0 auto; padding: 48px 24px; }
+        .top-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .logo { font-size: 18px; font-weight: 700; background: linear-gradient(90deg, #00d4ff, #8957ff); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .back-btn { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 16px; font-size: 13px; color: var(--muted); cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+        .back-btn:hover { color: var(--text); border-color: var(--accent); }
+
+        h1 { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+        h1 span { background: linear-gradient(90deg, #00d4ff, #8957ff); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .subtitle { color: var(--muted); margin-bottom: 40px; line-height: 1.6; }
+
+        .step { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+        .step-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+        .step-num { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #000; flex-shrink: 0; }
+        .step-title { font-size: 16px; font-weight: 600; }
+        .step p { color: var(--muted); line-height: 1.7; margin-bottom: 10px; }
+        .step p:last-child { margin-bottom: 0; }
+        .step strong { color: var(--text); }
+
+        .code-block {
+            background: var(--bg3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 16px;
+            font-family: var(--mono);
+            font-size: 12.5px;
+            line-height: 1.7;
+            margin: 12px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+        .code-block .comment { color: #636e7b; }
+        .code-block .key { color: #79c0ff; }
+        .code-block .val { color: #a5d6ff; }
+        .code-block .str { color: #a8ff78; }
+        .code-block .kwd { color: #ff7b72; }
+        .code-block .copy-btn {
+            position: absolute; top: 8px; right: 8px;
+            background: var(--bg2); border: 1px solid var(--border);
+            border-radius: 4px; padding: 4px 10px;
+            font-size: 11px; color: var(--muted);
+            cursor: pointer; transition: all 0.15s;
+        }
+        .code-block .copy-btn:hover { color: var(--text); border-color: var(--accent); }
+
+        .alert { display: flex; gap: 12px; padding: 14px 16px; border-radius: 6px; margin: 12px 0; font-size: 13px; }
+        .alert-warn { background: rgba(251,146,60,.08); border: 1px solid rgba(251,146,60,.25); color: #fdba74; }
+        .alert-info { background: rgba(0,212,255,.07); border: 1px solid rgba(0,212,255,.2); color: #7dd3fc; }
+        .alert-success { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.25); color: #86efac; }
+        .alert i { margin-top: 1px; flex-shrink: 0; }
+
+        .form-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 28px; }
+        .form-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .form-section p { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+        .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+        .field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+        .field input {
+            width: 100%; background: var(--bg3); border: 1px solid var(--border);
+            border-radius: 4px; padding: 9px 12px; font-size: 13px; color: var(--text);
+            font-family: var(--mono); transition: border-color 0.2s;
+        }
+        .field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,.07); }
+        .field input::placeholder { color: #484f58; }
+        .field.full { grid-column: span 2; }
+        .generate-btn {
+            width: 100%; background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #000; font-weight: 700; font-size: 14px;
+            padding: 12px; border: none; border-radius: 6px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: all 0.2s; box-shadow: 0 4px 15px rgba(0,212,255,.3);
+        }
+        .generate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,212,255,.4); }
+
+        .output-block { display: none; margin-top: 16px; }
+        .output-block.show { display: block; }
+
+        .db-rules { margin-top: 16px; }
+        .rules-title { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+<div class="page">
+
+    <!-- Nav -->
+    <div class="top-nav">
+        <div class="logo"><i class="fa-solid fa-code"></i> CodeCollab</div>
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back to Lobby</a>
+    </div>
+
+    <!-- Hero -->
+    <h1><span>Firebase Setup</span> Guide</h1>
+    <p class="subtitle">
+        CodeCollab uses <strong>Firebase Realtime Database</strong> for real-time collaboration.
+        Follow these steps to configure your free Firebase project.
+    </p>
+
+    <!-- Step 1 -->
+    <div class="step">
+        <div class="step-header">
+            <div class="step-num">1</div>
+            <div class="step-title">Create a Firebase Project</div>
+        </div>
+        <p>Go to <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a> and sign in with your Google account.</p>
+        <p>Click <strong>"Add project"</strong>, give it a name (e.g., <strong>codecollab</strong>), optionally disable Google Analytics, and click <strong>"Create project"</strong>.</p>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+        <div class="step-header">
+            <div class="step-num">2</div>
+            <div class="step-title">Register a Web App</div>
+        </div>
+        <p>On your project dashboard, click the <strong>Web icon (&lt;/&gt;)</strong> to add a web app to your Firebase project.</p>
+        <p>Give it a nickname (e.g., <strong>codecollab-web</strong>), skip Firebase Hosting, click <strong>"Register app"</strong>.</p>
+        <p>You'll see your <strong>firebaseConfig</strong> object — copy those values into the form below.</p>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+        <div class="step-header">
+            <div class="step-num">3</div>
+            <div class="step-title">Enable Realtime Database</div>
+        </div>
+        <p>In the left sidebar: <strong>Build → Realtime Database → Create database</strong>.</p>
+        <p>Choose a location closest to your users, then select <strong>"Start in test mode"</strong> (you can restrict rules later).</p>
+
+        <div class="db-rules">
+            <div class="rules-title"><i class="fa-solid fa-shield-halved"></i> Recommended Database Rules (paste in Firebase console → Rules tab):</div>
+            <div class="code-block" id="rulesCode">
+<span class="comment">// Firebase Realtime Database Rules</span>
+{
+  <span class="key">"rules"</span>: {
+    <span class="key">"rooms"</span>: {
+      <span class="key">"$roomId"</span>: {
+        <span class="comment">// Anyone can read/write rooms (change for production)</span>
+        <span class="key">".read"</span>:  <span class="str">"true"</span>,
+        <span class="key">".write"</span>: <span class="str">"true"</span>,
+        <span class="key">"chat"</span>: {
+          <span class="key">".indexOn"</span>: [<span class="str">"ts"</span>]
+        }
+      }
+    }
+  }
+}</div>
+        </div>
+
+        <div class="alert alert-warn">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Test mode allows anyone to read/write. For production, add authentication and restrict rules.</span>
+        </div>
+    </div>
+
+    <!-- Step 4: Config Generator -->
+    <div class="form-section">
+        <h2><i class="fa-brands fa-firebase" style="color:#ff9100"></i> Generate Config File</h2>
+        <p>Paste your Firebase config values below and click "Generate" to get the updated <code>firebase-config.js</code>.</p>
+
+        <div class="fields">
+            <div class="field">
+                <label>API Key</label>
+                <input type="text" id="f_apiKey" placeholder="AIzaSy...">
+            </div>
+            <div class="field">
+                <label>Project ID</label>
+                <input type="text" id="f_projectId" placeholder="your-project-id">
+            </div>
+            <div class="field">
+                <label>Auth Domain</label>
+                <input type="text" id="f_authDomain" placeholder="project.firebaseapp.com">
+            </div>
+            <div class="field">
+                <label>Database URL</label>
+                <input type="text" id="f_dbUrl" placeholder="https://project-rtdb.firebaseio.com">
+            </div>
+            <div class="field">
+                <label>Storage Bucket</label>
+                <input type="text" id="f_storageBucket" placeholder="project.appspot.com">
+            </div>
+            <div class="field">
+                <label>Messaging Sender ID</label>
+                <input type="text" id="f_senderId" placeholder="123456789012">
+            </div>
+            <div class="field full">
+                <label>App ID</label>
+                <input type="text" id="f_appId" placeholder="1:123456789:web:abc123...">
+            </div>
+        </div>
+
+        <button class="generate-btn" onclick="generateConfig()">
+            <i class="fa-solid fa-gear"></i> Generate firebase-config.js
+        </button>
+
+        <div class="output-block" id="configOutput">
+            <div class="alert alert-success" style="margin-top:16px; margin-bottom:8px;">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Config generated! Copy the code below and paste it into <strong>assets/js/firebase-config.js</strong></span>
+            </div>
+            <div class="code-block" id="generatedCode" style="white-space:pre;"></div>
+            <button onclick="copyConfig()" style="margin-top:10px; background:rgba(0,212,255,.1); border:1px solid rgba(0,212,255,.25); color:#7dd3fc; padding:8px 16px; border-radius:5px; cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px;">
+                <i class="fa-regular fa-copy"></i> Copy to Clipboard
+            </button>
+        </div>
+    </div>
+
+    <div class="alert alert-info" style="margin-top:24px;">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>
+            After saving <code>firebase-config.js</code>, visit <a href="index.html">index.html</a> to start collaborating!
+            Create a room, share the room code with teammates, and code together in real time.
+        </span>
+    </div>
+
+</div>
+
+<script>
+function generateConfig() {
+    const vals = {
+        apiKey:            document.getElementById('f_apiKey').value.trim(),
+        projectId:         document.getElementById('f_projectId').value.trim(),
+        authDomain:        document.getElementById('f_authDomain').value.trim()   || `${document.getElementById('f_projectId').value.trim()}.firebaseapp.com`,
+        databaseURL:       document.getElementById('f_dbUrl').value.trim()        || `https://${document.getElementById('f_projectId').value.trim()}-default-rtdb.firebaseio.com`,
+        storageBucket:     document.getElementById('f_storageBucket').value.trim()|| `${document.getElementById('f_projectId').value.trim()}.appspot.com`,
+        messagingSenderId: document.getElementById('f_senderId').value.trim(),
+        appId:             document.getElementById('f_appId').value.trim()
+    };
+
+    if (!vals.apiKey || !vals.projectId) {
+        alert('Please fill in at least API Key and Project ID.');
+        return;
+    }
+
+    const config = `/**
+ * CodeCollab — Firebase Configuration
+ * Generated by setup.html on ${new Date().toLocaleDateString()}
+ */
+
+const firebaseConfig = {
+    apiKey:            "${vals.apiKey}",
+    authDomain:        "${vals.authDomain}",
+    databaseURL:       "${vals.databaseURL}",
+    projectId:         "${vals.projectId}",
+    storageBucket:     "${vals.storageBucket}",
+    messagingSenderId: "${vals.messagingSenderId}",
+    appId:             "${vals.appId}"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+console.log('[CodeCollab] Firebase initialized.');`;
+
+    document.getElementById('generatedCode').textContent = config;
+    document.getElementById('configOutput').classList.add('show');
+}
+
+function copyConfig() {
+    const code = document.getElementById('generatedCode').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        event.target.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        setTimeout(() => event.target.innerHTML = '<i class="fa-regular fa-copy"></i> Copy to Clipboard', 2000);
+    });
+}
+
+// Allow pressing Enter to trigger generate
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && document.activeElement.tagName === 'INPUT') generateConfig();
+});
+</script>
+</body>
+</html>

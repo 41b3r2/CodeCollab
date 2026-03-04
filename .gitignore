@@ -1,0 +1,13 @@
+# ── Firebase credentials ─────────────────────────────────────
+# Real config with API keys — never commit this file.
+# Copy firebase-config.example.js → firebase-config.js and fill in your values.
+assets/js/firebase-config.js
+
+# ── Common ignores ────────────────────────────────────────────
+node_modules/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+Thumbs.db

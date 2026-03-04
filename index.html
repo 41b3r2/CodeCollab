@@ -1,0 +1,978 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCollab  Real-Time Collaborative IDE</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/lib/fontawesome/css/all.min.css">
+    <style>
+    /* ── Dashboard View ── */
+    .dash-wrap { width:100%; max-width:1000px; position:relative; z-index:1; padding-bottom:40px; margin:0 auto; }
+    .dash-page { min-height:100vh; padding:40px 24px 60px; display:flex; flex-direction:column; align-items:center; position:relative; }
+    .dash-topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:14px; }
+    .dash-topbar .logo-wrap { cursor:pointer; }
+    .dash-profile-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:28px 32px; display:flex; align-items:center; gap:24px; margin-bottom:20px; box-shadow:var(--shadow); flex-wrap:wrap; }
+    .dash-avatar { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:700; color:#000; flex-shrink:0; border:3px solid; }
+    .dash-profile-info { flex:1; min-width:0; }
+    .dash-profile-name { font-size:22px; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
+    .dash-profile-email { font-size:12px; color:var(--text-secondary); margin-bottom:10px; }
+    .dash-profile-stats { display:flex; gap:20px; flex-wrap:wrap; }
+    .dash-pstat { display:flex; flex-direction:column; }
+    .dash-pstat-val { font-size:22px; font-weight:700; color:var(--accent); line-height:1; }
+    .dash-pstat-lbl { font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+    .dash-profile-actions { display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+    .dash-rooms-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
+    .dash-rooms-title { font-size:16px; font-weight:700; display:flex; align-items:center; gap:10px; }
+    .dash-rooms-title i { color:var(--accent); }
+    .dash-rooms-count { background:var(--bg-secondary); border:1px solid var(--border); font-size:11px; padding:2px 9px; border-radius:10px; color:var(--text-secondary); }
+    .dash-search { background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius-sm); padding:7px 12px; font-size:12px; color:var(--text-primary); width:200px; transition:border-color .2s; }
+    .dash-search:focus { border-color:var(--accent); }
+    .dash-search::placeholder { color:var(--text-muted); }
+    .dash-room-grid { display:flex; flex-direction:column; gap:10px; }
+    .dash-room-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; display:flex; align-items:center; gap:18px; transition:border-color .2s, background .2s; cursor:pointer; }
+    .dash-room-card:hover { border-color:rgba(0,212,255,.35); background:var(--bg-hover); }
+    .dash-room-card.deleted-card { opacity:.5; cursor:default; }
+    .dash-room-card.deleted-card:hover { border-color:var(--border); background:var(--bg-card); }
+    .dash-room-code-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; background:rgba(0,212,255,.07); border:1px solid rgba(0,212,255,.18); border-radius:var(--radius-sm); padding:10px 16px; min-width:108px; flex-shrink:0; }
+    .dash-room-code { font-family:var(--font-mono); font-size:17px; font-weight:700; color:var(--accent); letter-spacing:3px; }
+    .dash-room-code-label { font-size:9px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; margin-top:3px; }
+    .dash-room-meta { flex:1; min-width:0; }
+    .dash-room-badges { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+    .dash-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; text-transform:uppercase; letter-spacing:.4px; display:flex; align-items:center; gap:4px; }
+    .dash-badge.creator { background:rgba(251,191,36,.12); color:#fbbf24; border:1px solid rgba(251,191,36,.25); }
+    .dash-badge.member  { background:rgba(139,92,246,.12); color:#a78bfa; border:1px solid rgba(139,92,246,.25); }
+    .dash-badge.deleted { background:rgba(244,63,94,.12); color:#f87171; border:1px solid rgba(244,63,94,.25); }
+    .dash-badge.kicked  { background:rgba(249,115,22,.12); color:#fb923c; border:1px solid rgba(249,115,22,.25); }
+    .dash-room-card.kicked-card { opacity:.5; cursor:default; }
+    .dash-room-card.kicked-card:hover { border-color:var(--border); background:var(--bg-card); }
+    .dash-room-times { font-size:11px; color:var(--text-secondary); display:flex; flex-direction:column; gap:2px; }
+    .dash-room-times span { display:flex; align-items:center; gap:5px; }
+    .dash-room-times i { color:var(--text-muted); width:12px; }
+    .dash-room-actions { display:flex; gap:8px; align-items:center; flex-shrink:0; }
+    .dash-open-btn { background:linear-gradient(135deg,#00d4ff,#0099cc); color:#000; font-weight:700; font-size:12px; padding:8px 18px; border-radius:var(--radius-sm); display:flex; align-items:center; gap:6px; transition:all .2s; box-shadow:0 2px 8px rgba(0,212,255,.25); }
+    .dash-open-btn:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,212,255,.35); }
+    .dash-delete-btn { width:32px; height:32px; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--text-muted); transition:all .15s; border:1px solid var(--border); }
+    .dash-delete-btn:hover { background:rgba(244,63,94,.1); color:var(--error); border-color:var(--error); }
+    .dash-empty { text-align:center; padding:60px 20px; color:var(--text-muted); }
+    .dash-empty i { font-size:48px; color:var(--border); margin-bottom:16px; display:block; }
+    .dash-empty h3 { font-size:16px; color:var(--text-secondary); margin-bottom:8px; }
+    .dash-empty p { font-size:13px; }
+    .dash-new-btn { background:linear-gradient(135deg,#00d4ff,#0099cc); color:#000; font-weight:700; font-size:13px; padding:10px 22px; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 2px 10px rgba(0,212,255,.3); margin-top:18px; }
+    .dash-new-btn:hover { transform:translateY(-1px); box-shadow:0 4px 16px rgba(0,212,255,.4); }
+    /* nav pills */
+    .view-nav { display:flex; gap:4px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:var(--radius); padding:4px; }
+    .view-nav-btn { display:flex; align-items:center; gap:7px; padding:7px 16px; border-radius:6px; font-size:12px; font-weight:600; color:var(--text-secondary); transition:all .2s; }
+    .view-nav-btn.active { background:var(--bg-card); color:var(--text-primary); box-shadow:0 1px 4px rgba(0,0,0,.3); }
+    .view-nav-btn:hover:not(.active) { color:var(--text-primary); }
+    .view-nav-btn i { font-size:11px; }
+
+    /* ── Programiz-inspired Landing Page ─────────────────────── */
+    .pz-page {
+        background: radial-gradient(ellipse at 20% 50%, rgba(137,87,255,0.08) 0%, transparent 60%),
+                    radial-gradient(ellipse at 80% 20%, rgba(0,212,255,0.06) 0%, transparent 60%),
+                    var(--bg-primary);
+        min-height: 100vh;
+    }
+
+    /* Navbar */
+    .pz-nav { position:fixed; top:0; left:0; right:0; height:62px; background:rgba(13,13,23,0.88); backdrop-filter:blur(14px); border-bottom:1px solid var(--border); z-index:1000; }
+    .pz-nav-inner { max-width:1200px; margin:0 auto; height:100%; padding:0 24px; display:flex; align-items:center; gap:16px; justify-content:space-between; }
+    .pz-logo { display:flex; align-items:center; gap:12px; cursor:pointer; flex-shrink:0; text-decoration:none; }
+    .pz-logo-icon { width:36px; height:36px; background:linear-gradient(135deg,#00d4ff,#8957ff); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#000; font-size:15px; font-weight:800; flex-shrink:0; }
+    .pz-logo-name { font-size:15px; font-weight:800; color:var(--text-primary); line-height:1.2; }
+    .pz-logo-sub  { font-size:10px; color:var(--text-muted); }
+    .pz-nav-langs { display:flex; align-items:center; gap:2px; flex:1; justify-content:center; flex-wrap:wrap; }
+    .pz-nav-lang  { font-size:11px; font-weight:600; color:var(--text-secondary); padding:5px 11px; border-radius:6px; cursor:pointer; transition:all .15s; white-space:nowrap; }
+    .pz-nav-lang:hover { background:var(--bg-secondary); color:var(--text-primary); }
+    .pz-nav-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .pz-user-pill { display:flex; align-items:center; gap:8px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:20px; padding:4px 12px 4px 4px; }
+    .pz-user-avatar { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#000; flex-shrink:0; }
+    .pz-user-name { font-size:12px; font-weight:600; color:var(--text-primary); max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pz-logout-btn { background:none; color:var(--text-muted); font-size:13px; cursor:pointer; padding:2px; transition:color .15s; }
+    .pz-logout-btn:hover { color:#f87171; }
+
+    /* Hero */
+    .pz-hero { min-height:100vh; padding:110px 24px 80px; display:flex; align-items:center; position:relative; overflow:hidden; }
+    .pz-hero-inner { max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; position:relative; z-index:1; width:100%; }
+    .pz-hero-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(0,212,255,0.1); border:1px solid rgba(0,212,255,0.25); color:var(--accent); font-size:11px; font-weight:700; padding:5px 14px; border-radius:20px; text-transform:uppercase; letter-spacing:.6px; margin-bottom:18px; }
+    .pz-hero-title { font-size:clamp(30px,4vw,52px); font-weight:900; line-height:1.12; color:var(--text-primary); margin-bottom:18px; }
+    .pz-hero-desc { font-size:15px; color:var(--text-secondary); line-height:1.75; max-width:480px; margin-bottom:30px; }
+    .pz-hero-ctas { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:22px; }
+    .pz-cta-primary { background:linear-gradient(135deg,#00d4ff,#0099cc); color:#000; font-weight:800; font-size:14px; padding:13px 30px; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:8px; transition:all .2s; box-shadow:0 4px 20px rgba(0,212,255,.3); cursor:pointer; }
+    .pz-cta-primary:hover { transform:translateY(-2px); box-shadow:0 8px 30px rgba(0,212,255,.45); }
+    .pz-cta-secondary { background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary); font-weight:600; font-size:14px; padding:13px 30px; border-radius:var(--radius-sm); display:inline-flex; align-items:center; gap:8px; transition:all .2s; cursor:pointer; }
+    .pz-cta-secondary:hover { border-color:var(--accent); color:var(--accent); }
+    .pz-hero-chips { display:flex; gap:8px; flex-wrap:wrap; }
+    .pz-chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:600; color:var(--text-secondary); background:var(--bg-secondary); border:1px solid var(--border); padding:4px 11px; border-radius:12px; }
+    .pz-chip i { color:#22c55e; }
+
+    /* Code window */
+    .pz-code-window { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:0 24px 64px rgba(0,0,0,.55); }
+    .pz-code-titlebar { background:var(--bg-secondary); padding:10px 16px; display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--border); }
+    .pz-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+    .pz-dot.r { background:#f87171; } .pz-dot.y { background:#fbbf24; } .pz-dot.g { background:#4ade80; }
+    .pz-code-filename { font-size:11px; color:var(--text-muted); font-family:var(--font-mono); margin-left:6px; }
+    .pz-code-body { padding:20px; font-family:var(--font-mono); font-size:13px; line-height:1.8; color:#cdd6f4; margin:0; background:var(--bg-card); overflow:visible; }
+    .k  { color:#cba6f7; } .fn { color:#89b4fa; } .s  { color:#a6e3a1; } .p  { color:#fab387; } .cm { color:#585b70; }
+    .pz-code-output { background:rgba(0,0,0,.3); border-top:1px solid var(--border); padding:12px 20px; font-family:var(--font-mono); font-size:12px; color:#a6e3a1; }
+    .pz-cursors { display:flex; gap:6px; padding:10px 20px; background:var(--bg-secondary); border-top:1px solid var(--border); }
+    .pz-cur { font-size:10px; font-weight:800; color:#000; padding:2px 9px; border-radius:10px; }
+
+    /* Sections */
+    .pz-section { padding:80px 24px; border-top:1px solid var(--border); }
+    .pz-section-inner { max-width:1200px; margin:0 auto; }
+    .pz-section-head { text-align:center; margin-bottom:48px; }
+    .pz-section-title { font-size:clamp(22px,3vw,32px); font-weight:800; color:var(--text-primary); margin-bottom:10px; }
+    .pz-section-sub { font-size:14px; color:var(--text-secondary); }
+
+    /* Language grid */
+    .pz-lang-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:14px; }
+    .pz-lang-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:22px 14px; text-align:center; cursor:pointer; transition:all .2s; display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .pz-lang-card:hover { border-color:var(--lc,var(--accent)); transform:translateY(-4px); box-shadow:0 10px 28px rgba(0,0,0,.35); }
+    .pz-lang-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+    .pz-lang-name { font-size:13px; font-weight:700; color:var(--text-primary); }
+    .pz-lang-badge { font-size:10px; color:var(--text-muted); display:flex; align-items:center; gap:4px; }
+    .pz-lang-card:hover .pz-lang-badge { color:var(--lc,var(--accent)); }
+
+    /* Forms section */
+    .pz-forms-bg { background:var(--bg-secondary); }
+    .pz-forms-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; max-width:840px; margin:0 auto; }
+    .pz-form-card { background:var(--bg-card); border:2px solid var(--border); border-radius:var(--radius-lg); padding:28px; cursor:pointer; transition:border-color .2s, box-shadow .2s; }
+    .pz-form-card.pz-active { border-color:var(--accent); cursor:default; box-shadow:0 0 0 4px rgba(0,212,255,.08); }
+    .pz-form-card-hdr { display:flex; align-items:flex-start; gap:14px; margin-bottom:20px; }
+    .pz-form-card-hdr > i { font-size:22px; color:var(--accent); margin-top:3px; }
+    .pz-form-card-title { font-size:16px; font-weight:800; color:var(--text-primary); margin-bottom:3px; }
+    .pz-form-card-sub { font-size:12px; color:var(--text-muted); }
+    .pz-form { display:flex; flex-direction:column; gap:18px; }
+    .pz-btn-submit { font-weight:800; font-size:14px; padding:13px 0; border-radius:var(--radius-sm); width:100%; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .2s; cursor:pointer; }
+    .pz-btn-create { background:linear-gradient(135deg,#00d4ff,#0099cc); color:#000; box-shadow:0 4px 16px rgba(0,212,255,.25); }
+    .pz-btn-create:hover { transform:translateY(-1px); box-shadow:0 6px 22px rgba(0,212,255,.4); }
+    .pz-btn-join   { background:linear-gradient(135deg,#8957ff,#6366f1); color:#fff; box-shadow:0 4px 16px rgba(137,87,255,.25); }
+    .pz-btn-join:hover { transform:translateY(-1px); box-shadow:0 6px 22px rgba(137,87,255,.4); }
+
+    /* Features */
+    .pz-feat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:20px; }
+    .pz-feat-card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:28px; transition:border-color .2s, transform .2s; }
+    .pz-feat-card:hover { border-color:rgba(0,212,255,.28); transform:translateY(-2px); }
+    .pz-feat-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; margin-bottom:14px; }
+    .pz-feat-title { font-size:15px; font-weight:700; color:var(--text-primary); margin-bottom:8px; }
+    .pz-feat-desc  { font-size:13px; color:var(--text-secondary); line-height:1.65; }
+
+    /* History section CTA */
+    .pz-view-all { background:rgba(0,212,255,.1); border:1px solid rgba(0,212,255,.25); color:var(--accent); font-size:12px; font-weight:700; padding:7px 16px; border-radius:var(--radius-sm); cursor:pointer; display:flex; align-items:center; gap:6px; transition:all .15s; }
+    .pz-view-all:hover { background:rgba(0,212,255,.2); }
+
+    /* Footer */
+    .pz-footer { border-top:1px solid var(--border); padding:28px 24px; }
+    .pz-footer-inner { max-width:1200px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+    .pz-footer-stack { display:flex; gap:20px; flex-wrap:wrap; }
+    .pz-footer-stack span { font-size:11px; color:var(--text-muted); display:flex; align-items:center; gap:5px; }
+    .pz-footer-stack i { color:var(--accent); }
+
+    /* ── Edit Account Modal ── */
+    .edit-modal-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); z-index:9000; display:flex; align-items:center; justify-content:center; padding:16px; }
+    .edit-modal { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); width:100%; max-width:480px; box-shadow:0 24px 60px rgba(0,0,0,0.6); animation:modalSlideIn .2s ease; }
+    @keyframes modalSlideIn { from { opacity:0; transform:translateY(-16px) scale(.97); } to { opacity:1; transform:none; } }
+    .edit-modal-header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px 16px; border-bottom:1px solid var(--border); }
+    .edit-modal-header h3 { font-size:16px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:9px; }
+    .edit-modal-header h3 i { color:var(--accent); }
+    .edit-modal-close { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); transition:all .15s; }
+    .edit-modal-close:hover { background:var(--bg-secondary); color:var(--text-primary); }
+    .edit-modal-body { padding:20px 24px; display:flex; flex-direction:column; gap:16px; }
+    .edit-modal-footer { display:flex; gap:10px; margin-top:4px; }
+    .edit-modal-cancel { background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-secondary); font-size:13px; font-weight:600; padding:10px 18px; border-radius:var(--radius-sm); cursor:pointer; transition:all .15s; white-space:nowrap; }
+    .edit-modal-cancel:hover { color:var(--text-primary); border-color:var(--text-muted); }
+    .dash-edit-btn { background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-secondary); font-size:12px; font-weight:600; padding:8px 16px; border-radius:var(--radius-sm); display:flex; align-items:center; gap:7px; cursor:pointer; transition:all .15s; }
+    .dash-edit-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(0,212,255,0.06); }
+    .dash-edit-btn i { font-size:11px; }
+
+    /* Responsive */
+    @media (max-width:900px) {
+        .pz-hero-inner  { grid-template-columns:1fr; }
+        .pz-hero-code   { display:none; }
+        .pz-forms-grid  { grid-template-columns:1fr; }
+        .pz-nav-langs   { display:none; }
+    }
+    @media (max-width:600px) {
+        .pz-lang-grid { grid-template-columns:repeat(2,1fr); }
+        .pz-feat-grid { grid-template-columns:1fr; }
+    }
+    </style>
+
+    <!-- Firebase -->
+    <script src="assets/lib/firebase/firebase-app-compat.js"></script>
+    <script src="assets/lib/firebase/firebase-auth-compat.js"></script>
+    <script src="assets/lib/firebase/firebase-database-compat.js"></script>
+    <script src="assets/js/firebase-config.js"></script>
+    <!-- React 18 + Babel -->
+    <script src="assets/lib/react/react.production.min.js" crossorigin></script>
+    <script src="assets/lib/react/react-dom.production.min.js" crossorigin></script>
+    <script src="assets/lib/react/babel.min.js"></script>
+</head>
+<body class="pz-page">
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+
+const PRESETS = ['#00d4ff','#8957ff','#22c55e','#f43f5e','#fb923c','#fbbf24','#e879f9','#38bdf8'];
+
+function generateRoomId() {
+    const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    return Array.from({length:8}, ()=>c[Math.floor(Math.random()*c.length)]).join('');
+}
+function relativeTime(ts) {
+    if (!ts) return '';
+    const diff = Date.now() - ts;
+    const min = Math.floor(diff/60000);
+    if (min < 1)  return 'just now';
+    if (min < 60) return min + 'm ago';
+    const hr = Math.floor(min/60);
+    if (hr < 24)  return hr + 'h ago';
+    const day = Math.floor(hr/24);
+    if (day < 30) return day + 'd ago';
+    return new Date(ts).toLocaleDateString();
+}
+
+function Particles() {
+    const p = useMemo(()=>Array.from({length:20},(_,i)=>({
+        id:i, left:Math.floor(Math.random()*100),
+        delay:Math.floor(Math.random()*8),
+        duration:8+Math.floor(Math.random()*12),
+        size:2+Math.floor(Math.random()*4),
+    })),[]);
+    return (
+        <div className="bg-particles">
+            {p.map(x=>(
+                <div key={x.id} className="particle" style={{
+                    left:x.left+'%', animationDelay:x.delay+'s',
+                    animationDuration:x.duration+'s',
+                    width:x.size+'px', height:x.size+'px'
+                }}/>
+            ))}
+        </div>
+    );
+}
+
+function ColorPicker({ id, value, onChange }) {
+    return (
+        <div className="color-picker-row">
+            <input type="color" id={id} value={value} className="color-input"
+                onChange={e=>onChange(e.target.value)}/>
+            <div className="color-presets">
+                {PRESETS.map(c=>(
+                    <span key={c} className={'color-dot'+(value===c?' active':'')}
+                        style={{background:c}} onClick={()=>onChange(c)}/>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ── Edit Account Modal ───────────────────────────────────────
+function EditAccountModal({ user, profile, onSave, onClose }) {
+    const [fullName, setFullName] = React.useState(profile?.fullName || '');
+    const [username, setUsername] = React.useState(profile?.username || '');
+    const [color,    setColor]    = React.useState(profile?.color    || '#00d4ff');
+    const [saving,   setSaving]   = React.useState(false);
+    const [error,    setError]    = React.useState('');
+    const [success,  setSuccess]  = React.useState(false);
+
+    async function handleSave(e) {
+        e.preventDefault();
+        setError('');
+        if (!fullName.trim() || fullName.trim().length < 2) { setError('Full name must be at least 2 characters.'); return; }
+        if (!username.trim() || username.trim().length < 2) { setError('Room display name must be at least 2 characters.'); return; }
+        setSaving(true);
+        try {
+            await firebase.database().ref('users/' + user.uid + '/profile').update({
+                fullName: fullName.trim(),
+                username: username.trim(),
+                color
+            });
+            try { await firebase.auth().currentUser.updateProfile({ displayName: fullName.trim() }); } catch (_) {}
+            setSuccess(true);
+            setTimeout(() => { onSave({ fullName: fullName.trim(), username: username.trim(), color }); onClose(); }, 800);
+        } catch (err) {
+            setError('Failed to save changes. Please try again.');
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <div className="edit-modal-backdrop" onClick={onClose}>
+            <div className="edit-modal" onClick={e=>e.stopPropagation()}>
+                <div className="edit-modal-header">
+                    <h3><i className="fa-solid fa-user-pen"></i> Edit Account</h3>
+                    <button className="edit-modal-close" onClick={onClose}><i className="fa-solid fa-xmark"></i></button>
+                </div>
+                <form className="edit-modal-body" onSubmit={handleSave}>
+                    <div className="form-group">
+                        <label><i className="fa-solid fa-id-card"></i> Full Name</label>
+                        <input type="text" value={fullName} onChange={e=>setFullName(e.target.value)}
+                            placeholder="Your real name" maxLength={50}/>
+                        <span className="field-hint">Shown on your profile card</span>
+                    </div>
+                    <div className="form-group">
+                        <label><i className="fa-solid fa-at"></i> Room Display Name</label>
+                        <input type="text" value={username} onChange={e=>setUsername(e.target.value)}
+                            placeholder="Name shown to collaborators" maxLength={30}/>
+                        <span className="field-hint">Displayed in coding rooms & chat</span>
+                    </div>
+                    <div className="form-group">
+                        <label><i className="fa-solid fa-palette"></i> Cursor Color</label>
+                        <ColorPicker id="edit-color" value={color} onChange={setColor}/>
+                    </div>
+                    {error   && <div className="error-msg"><i className="fa-solid fa-circle-exclamation"></i> {error}</div>}
+                    {success && <div className="success-msg"><i className="fa-solid fa-circle-check"></i> Saved successfully!</div>}
+                    <div className="edit-modal-footer">
+                        <button type="button" className="edit-modal-cancel" onClick={onClose}>Cancel</button>
+                        <button type="submit" className="btn-primary" disabled={saving} style={{flex:1,padding:'10px 0'}}>
+                            {saving
+                                ? <><i className="fa-solid fa-spinner fa-spin"></i> Saving...</>
+                                : <><i className="fa-solid fa-floppy-disk"></i> Save Changes</>}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// ── Dashboard View Component ─────────────────────────────────
+function DashboardView({ user, profile, rooms, onOpenRoom, onRemoveRoom, onGoLobby, onLogout, onUpdateProfile }) {
+    const [search, setSearch] = React.useState('');
+    const [removing, setRemoving] = React.useState(null);
+    const [editAccountOpen, setEditAccountOpen] = React.useState(false);
+
+    const filtered = rooms.filter(r =>
+        r.roomId && r.roomId.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const creatorCount = rooms.filter(r => r.isCreator).length;
+    const activeCount  = rooms.filter(r => !r.deleted).length;
+
+    async function handleRemove(e, room) {
+        e.stopPropagation();
+        if (!confirm('Remove room ' + room.roomId + ' from your history?\n\nThis only removes it from your history. Other members are unaffected.')) return;
+        setRemoving(room.roomId);
+        try {
+            await firebase.database().ref('users/' + user.uid + '/rooms/' + room.roomId).remove();
+            onRemoveRoom(room.roomId);
+        } catch { }
+        setRemoving(null);
+    }
+
+    return (
+        <>
+            <Particles/>
+            {editAccountOpen && (
+                <EditAccountModal
+                    user={user}
+                    profile={profile}
+                    onSave={onUpdateProfile}
+                    onClose={()=>setEditAccountOpen(false)}
+                />
+            )}
+            <div className="dash-page">
+            <div className="dash-wrap">
+                {/* Top bar */}
+                <div className="dash-topbar">
+                    <div className="logo-wrap" onClick={onGoLobby} style={{cursor:'pointer'}}>
+                        <div className="logo-icon"><i className="fa-solid fa-code"></i></div>
+                        <div className="logo-text">
+                            <span className="logo-name">CodeCollab</span>
+                            <span className="logo-tagline">Real-Time Collaborative IDE</span>
+                        </div>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <div className="view-nav">
+                            <button className="view-nav-btn" onClick={onGoLobby}>
+                                <i className="fa-solid fa-house"></i> Lobby
+                            </button>
+                            <button className="view-nav-btn active">
+                                <i className="fa-solid fa-gauge"></i> Dashboard
+                            </button>
+                        </div>
+                        <div className="lobby-user-bar">
+                            <div className="lobby-user-avatar" style={{background:profile?.color||'#00d4ff'}}>
+                                {(profile?.fullName||profile?.username||'?').charAt(0).toUpperCase()}
+                            </div>
+                            <span className="lobby-user-name">{profile?.fullName||profile?.username}</span>
+                            <button className="lobby-logout-btn" onClick={onLogout} title="Sign out">
+                                <i className="fa-solid fa-right-from-bracket"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Profile card */}
+                <div className="dash-profile-card">
+                    <div className="dash-avatar" style={{background:profile?.color||'#00d4ff', borderColor:profile?.color||'#00d4ff'}}>
+                        {(profile?.fullName||profile?.username||'?').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="dash-profile-info">
+                        <div className="dash-profile-name">{profile?.fullName || profile?.username || 'User'}</div>
+                        <div className="dash-profile-email" style={{fontSize:11,color:'var(--text-muted)',marginBottom:4}}>
+                            <i className="fa-solid fa-id-badge" style={{marginRight:4}}></i>Room name: <strong style={{color:'var(--text-secondary)'}}>{profile?.username}</strong>
+                        </div>
+                        <div className="dash-profile-email"><i className="fa-solid fa-envelope" style={{color:'var(--text-muted)',marginRight:5}}></i>{user?.email}</div>
+                        <div className="dash-profile-stats">
+                            <div className="dash-pstat">
+                                <span className="dash-pstat-val">{rooms.length}</span>
+                                <span className="dash-pstat-lbl">Total Rooms</span>
+                            </div>
+                            <div className="dash-pstat">
+                                <span className="dash-pstat-val" style={{color:'#fbbf24'}}>{creatorCount}</span>
+                                <span className="dash-pstat-lbl">Created</span>
+                            </div>
+                            <div className="dash-pstat">
+                                <span className="dash-pstat-val" style={{color:'#22c55e'}}>{activeCount}</span>
+                                <span className="dash-pstat-lbl">Active</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="dash-profile-actions">
+                        <button className="dash-new-btn" onClick={onGoLobby}>
+                            <i className="fa-solid fa-plus"></i> New Room
+                        </button>
+                        <button className="dash-edit-btn" onClick={()=>setEditAccountOpen(true)}>
+                            <i className="fa-solid fa-user-pen"></i> Edit Account
+                        </button>
+                    </div>
+                </div>
+
+                {/* Room list */}
+                <div className="dash-rooms-header">
+                    <div className="dash-rooms-title">
+                        <i className="fa-solid fa-clock-rotate-left"></i>
+                        Room History
+                        <span className="dash-rooms-count">{filtered.length} / {rooms.length}</span>
+                    </div>
+                    {rooms.length > 0 && (
+                        <input
+                            className="dash-search"
+                            type="text"
+                            placeholder="Search by room code..."
+                            value={search}
+                            onChange={e=>setSearch(e.target.value)}/>
+                    )}
+                </div>
+
+                {rooms.length === 0 ? (
+                    <div className="dash-empty">
+                        <i className="fa-solid fa-door-open"></i>
+                        <h3>No room history yet</h3>
+                        <p>Create or join a room to get started.</p>
+                        <button className="dash-new-btn" onClick={onGoLobby}>
+                            <i className="fa-solid fa-rocket"></i> Go to Lobby
+                        </button>
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="dash-empty">
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                        <h3>No rooms match "{search}"</h3>
+                        <p>Try a different room code.</p>
+                    </div>
+                ) : (
+                    <div className="dash-room-grid">
+                        {filtered.map(room => (
+                            <div key={room.roomId}
+                                className={'dash-room-card' + (room.deleted ? ' deleted-card' : '') + (room.kicked ? ' kicked-card' : '')}
+                                onClick={()=>!room.deleted && !room.kicked && onOpenRoom(room)}>
+
+                                <div className="dash-room-code-wrap">
+                                    <span className="dash-room-code">{room.roomId}</span>
+                                    <span className="dash-room-code-label">Room Code</span>
+                                </div>
+
+                                <div className="dash-room-meta">
+                                    <div className="dash-room-badges">
+                                        {room.isCreator
+                                            ? <span className="dash-badge creator"><i className="fa-solid fa-crown"></i> Creator</span>
+                                            : <span className="dash-badge member"><i className="fa-solid fa-user"></i> Member</span>}
+                                        {room.deleted && <span className="dash-badge deleted"><i className="fa-solid fa-trash"></i> Deleted</span>}
+                                        {room.kicked && !room.deleted && <span className="dash-badge kicked"><i className="fa-solid fa-ban"></i> Kicked</span>}
+                                    </div>
+                                    <div className="dash-room-times">
+                                        {room.lastVisited && (
+                                            <span><i className="fa-regular fa-clock"></i> Last visited {relativeTime(room.lastVisited)}</span>
+                                        )}
+                                        {room.joinedAt && (
+                                            <span><i className="fa-solid fa-right-to-bracket"></i> Joined {relativeTime(room.joinedAt)}</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="dash-room-actions" onClick={e=>e.stopPropagation()}>
+                                    {!room.deleted && !room.kicked && (
+                                        <button className="dash-open-btn" onClick={()=>onOpenRoom(room)}>
+                                            <i className="fa-solid fa-arrow-right-to-bracket"></i> Open
+                                        </button>
+                                    )}
+                                    <button
+                                        className="dash-delete-btn"
+                                        onClick={e=>handleRemove(e,room)}
+                                        disabled={removing===room.roomId}
+                                        title="Remove from history">
+                                        <i className={removing===room.roomId ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-trash'}></i>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+            </div>
+        </>
+    );
+}
+
+function HistoryCard({ room, onOpen, onRemove }) {
+    const [removing, setRemoving] = useState(false);
+    async function handleRemove(e) {
+        e.stopPropagation();
+        if (!confirm('Remove room ' + room.roomId + ' from your history?\n\nThis only removes it from your history. Other members are unaffected.')) return;
+        setRemoving(true);
+        try {
+            await firebase.database().ref('users/' + firebase.auth().currentUser.uid + '/rooms/' + room.roomId).remove();
+            onRemove(room.roomId);
+        } catch { setRemoving(false); }
+    }
+    return (
+        <div className="history-card" onClick={()=>!room.deleted && !room.kicked && onOpen(room)}>
+            <div className="history-card-left">
+                <span className="history-code">{room.roomId}</span>
+                {room.isCreator && <span className="history-badge creator"><i className="fa-solid fa-crown"></i> Creator</span>}
+                {room.deleted   && <span className="history-badge deleted"><i className="fa-solid fa-trash"></i> Deleted</span>}
+                {room.kicked && !room.deleted && <span className="history-badge kicked"><i className="fa-solid fa-ban"></i> Kicked</span>}
+            </div>
+            <div className="history-card-right">
+                <span className="history-time"><i className="fa-regular fa-clock"></i> {relativeTime(room.lastVisited||room.joinedAt)}</span>
+                {!room.deleted && !room.kicked && (
+                    <button className="history-open-btn" onClick={e=>{e.stopPropagation();onOpen(room);}}>
+                        <i className="fa-solid fa-arrow-right-to-bracket"></i> Open
+                    </button>
+                )}
+                <button className="history-remove-btn" onClick={handleRemove} disabled={removing} title="Remove from my history">
+                    <i className={removing?'fa-solid fa-spinner fa-spin':'fa-solid fa-xmark'}></i>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function App() {
+    const [authState, setAuthState] = useState('loading');
+    const [user,      setUser]      = useState(null);
+    const [profile,   setProfile]   = useState(null);
+    const [tab,         setTab]         = useState('create');
+    const [createColor, setCreateColor] = useState('#00d4ff');
+    const [joinColor,   setJoinColor]   = useState('#8957ff');
+    const [joinRoomId,  setJoinRoomId]  = useState('');
+    const [formError,   setFormError]   = useState('');
+    const [rooms,       setRooms]       = useState([]);
+    const [view,        setView]        = useState('lobby');
+    const historyRef = useRef(null);
+    const joinParam  = useMemo(()=>new URLSearchParams(location.search).get('join')||'',[]);
+    // Auto-open dashboard if returning from room with ?dashboard=1
+    useEffect(()=>{
+        if (new URLSearchParams(location.search).get('dashboard') === '1') setView('dashboard');
+    },[]);
+
+    useEffect(()=>{
+        // Safety timeout — if onAuthStateChanged never fires (SDK issue), redirect after 10s
+        const timeoutId = setTimeout(()=>{ window.location.href = 'auth.html'; }, 10000);
+
+        const unsub = firebase.auth().onAuthStateChanged(async u => {
+            clearTimeout(timeoutId);
+            if (!u) { window.location.href = 'auth.html'; return; }
+
+            // Helper: DB read with a 5-second timeout so a hanging read can't block the app
+            function dbReadWithTimeout(ref, ms) {
+                return Promise.race([
+                    ref.once('value'),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('DB read timed out')), ms))
+                ]);
+            }
+
+            try {
+                const snap = await dbReadWithTimeout(
+                    firebase.database().ref('users/'+u.uid+'/profile'), 5000
+                );
+                const prof = snap.val() || {};
+                const fullName = prof.fullName || prof.username || u.displayName || (u.email ? u.email.split('@')[0] : 'User');
+                const username = prof.username || fullName;
+                const color    = prof.color    || '#00d4ff';
+                setUser(u); setProfile({...prof, fullName, username, color});
+                setCreateColor(color);  setJoinColor(color);
+            } catch(err) {
+                console.warn('[CodeCollab] Could not load profile, using defaults:', err.message);
+                const username = u.displayName || (u.email ? u.email.split('@')[0] : 'User');
+                const color = '#00d4ff';
+                setUser(u); setProfile({ fullName: username, username, color });
+                setCreateColor(color);  setJoinColor(color);
+            }
+            setAuthState('authed');
+            if (joinParam) { setTab('join'); setJoinRoomId(joinParam.toUpperCase()); }
+            if (historyRef.current) historyRef.current.off();
+            historyRef.current = firebase.database().ref('users/'+u.uid+'/rooms');
+            historyRef.current.on('value', snap2 => {
+                const data = snap2.val() || {};
+                const list = Object.values(data).sort((a,b)=>(b.lastVisited||b.joinedAt)-(a.lastVisited||a.joinedAt));
+                setRooms(list);
+            });
+        });
+        return ()=>{ clearTimeout(timeoutId); unsub(); if(historyRef.current) historyRef.current.off(); };
+    },[]);
+
+    function handleLogout() {
+        if (!confirm('Sign out of CodeCollab?')) return;
+        firebase.auth().signOut();
+    }
+    function openRoom(room) {
+        firebase.database().ref('users/'+user.uid+'/rooms/'+room.roomId+'/lastVisited')
+            .set(firebase.database.ServerValue.TIMESTAMP);
+        window.location.href = 'room.html?room='+room.roomId;
+    }
+    function removeRoom(roomId) { setRooms(prev=>prev.filter(r=>r.roomId!==roomId)); }
+
+    function handleCreate(e) {
+        e.preventDefault(); setFormError('');
+        const displayName = (profile?.fullName || profile?.username || '').trim();
+        if (!displayName) { setFormError('Account profile not loaded. Please refresh.'); return; }
+        const roomId = generateRoomId();
+        firebase.database().ref('users/'+user.uid+'/profile').update({ username: displayName, color: createColor });
+        sessionStorage.setItem('cc_is_creator','1');
+        window.location.href = 'room.html?room='+roomId;
+    }
+    function handleJoin(e) {
+        e.preventDefault(); setFormError('');
+        if (!joinRoomId.trim()) { setFormError('Please enter a Room Code.'); return; }
+        const displayName = (profile?.fullName || profile?.username || '').trim();
+        if (!displayName) { setFormError('Account profile not loaded. Please refresh.'); return; }
+        firebase.database().ref('users/'+user.uid+'/profile').update({ username: displayName, color: joinColor });
+        sessionStorage.removeItem('cc_is_creator');
+        window.location.href = 'room.html?room='+joinRoomId.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    }
+
+    if (authState === 'loading') return (
+        <>
+            <Particles/>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',flexDirection:'column',gap:16}}>
+                <div style={{width:44,height:44,border:'3px solid rgba(0,212,255,0.15)',borderTopColor:'#00d4ff',borderRadius:'50%',animation:'wSpin 1s linear infinite'}}/>
+                <span style={{color:'var(--text-secondary)',fontSize:13}}>Checking authentication...</span>
+                <style>{`@keyframes wSpin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+        </>
+    );
+
+    if (view === 'dashboard') return (
+        <DashboardView
+            user={user}
+            profile={profile}
+            rooms={rooms}
+            onOpenRoom={openRoom}
+            onRemoveRoom={removeRoom}
+            onGoLobby={()=>setView('lobby')}
+            onLogout={handleLogout}
+            onUpdateProfile={newProfile => setProfile(prev => ({...prev, ...newProfile}))}
+        />
+    );
+
+    const scrollTo = (id, t) => { setTab(t); setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}), 50); };
+
+    const LANGS = [
+        {key:'javascript', name:'JavaScript', icon:'fa-brands fa-js',     color:'#f7df1e', bg:'rgba(247,223,30,0.12)'},
+        {key:'python',     name:'Python',     icon:'fa-brands fa-python', color:'#4b8bbe', bg:'rgba(75,139,190,0.12)'},
+        {key:'c',          name:'C',          icon:'fa-solid fa-c',       color:'#a8b9cc', bg:'rgba(168,185,204,0.12)'},
+        {key:'cpp',        name:'C++',        icon:'fa-solid fa-code',    color:'#00adef', bg:'rgba(0,173,239,0.12)'},
+        {key:'java',       name:'Java',       icon:'fa-brands fa-java',   color:'#ed8b00', bg:'rgba(237,139,0,0.12)'},
+        {key:'php',        name:'PHP',        icon:'fa-brands fa-php',    color:'#8993be', bg:'rgba(137,147,190,0.12)'},
+        {key:'ruby',       name:'Ruby',       icon:'fa-solid fa-gem',     color:'#cc342d', bg:'rgba(204,52,45,0.12)'},
+        {key:'go',         name:'Go',         icon:'fa-solid fa-g',       color:'#00add8', bg:'rgba(0,173,216,0.12)'},
+    ];
+
+    return (
+        <>
+        {/* ── NAVBAR ─────────────────────────────────────────── */}
+        <nav className="pz-nav">
+            <div className="pz-nav-inner">
+                <div className="pz-logo">
+                    <div className="pz-logo-icon"><i className="fa-solid fa-code"></i></div>
+                    <div>
+                        <div className="pz-logo-name">CodeCollab</div>
+                        <div className="pz-logo-sub">Collaborative IDE</div>
+                    </div>
+                </div>
+                <div className="pz-nav-langs">
+                    {LANGS.map(l=>(
+                        <span key={l.key} className="pz-nav-lang" onClick={()=>scrollTo('pz-forms','create')}>{l.name}</span>
+                    ))}
+                </div>
+                <div className="pz-nav-right">
+                    <div className="view-nav">
+                        <button className="view-nav-btn active"><i className="fa-solid fa-house"></i> Home</button>
+                        <button className="view-nav-btn" onClick={()=>setView('dashboard')}><i className="fa-solid fa-gauge"></i> Dashboard</button>
+                    </div>
+                    <div className="pz-user-pill">
+                        <div className="pz-user-avatar" style={{background:profile?.color||'#00d4ff'}}>
+                            {(profile?.fullName||'?').charAt(0).toUpperCase()}
+                        </div>
+                        <span className="pz-user-name">{profile?.fullName||profile?.username}</span>
+                        <button className="pz-logout-btn" onClick={handleLogout} title="Sign out"><i className="fa-solid fa-right-from-bracket"></i></button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        {/* ── HERO ───────────────────────────────────────────── */}
+        <section className="pz-hero">
+            <Particles/>
+            <div className="pz-hero-inner">
+                <div className="pz-hero-text">
+                    <div className="pz-hero-badge"><i className="fa-solid fa-bolt"></i> Real-Time Collaboration</div>
+                    <h1 className="pz-hero-title">
+                        Code Together,<br/><span className="gradient-text">Build Faster.</span>
+                    </h1>
+                    <p className="pz-hero-desc">
+                        A real-time collaborative IDE where every keystroke syncs instantly. See live cursors, execute code in 8 languages, chat with teammates — all in one room.
+                    </p>
+                    <div className="pz-hero-ctas">
+                        <button className="pz-cta-primary" onClick={()=>scrollTo('pz-forms','create')}>
+                            <i className="fa-solid fa-rocket"></i> Create a Room
+                        </button>
+                        <button className="pz-cta-secondary" onClick={()=>scrollTo('pz-forms','join')}>
+                            <i className="fa-solid fa-door-open"></i> Join a Room
+                        </button>
+                    </div>
+                    <div className="pz-hero-chips">
+                        {['Free','No Setup','8 Languages','Live Cursors','Team Chat'].map(c=>(
+                            <span key={c} className="pz-chip"><i className="fa-solid fa-check"></i> {c}</span>
+                        ))}
+                    </div>
+                </div>
+                <div className="pz-hero-code">
+                    <div className="pz-code-window">
+                        <div className="pz-code-titlebar">
+                            <span className="pz-dot r"></span><span className="pz-dot y"></span><span className="pz-dot g"></span>
+                            <span className="pz-code-filename">main.py</span>
+                        </div>
+                        <pre className="pz-code-body"
+                            dangerouslySetInnerHTML={{__html:
+                                `<span class="k">def</span> <span class="fn">greet</span>(<span class="p">name</span>):\n    <span class="k">return</span> <span class="s">f"Hello, {'{'}name{'}'}"</span>\n\n<span class="cm"># Multiple users editing live</span>\nusers = [<span class="s">"Alice"</span>, <span class="s">"Bob"</span>, <span class="s">"Sara"</span>]\n<span class="k">for</span> user <span class="k">in</span> users:\n    <span class="fn">print</span>(greet(user))`
+                            }}
+                        />
+                        <div className="pz-code-output">{'▶  Hello, Alice\n   Hello, Bob\n   Hello, Sara'}</div>
+                        <div className="pz-cursors">
+                            {[['Alice','#00d4ff'],['Bob','#8957ff'],['Sara','#22c55e']].map(([n,c])=>(
+                                <span key={n} className="pz-cur" style={{background:c}}>{n}</span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* ── LANGUAGE CARDS ─────────────────────────────────── */}
+        <section className="pz-section">
+            <div className="pz-section-inner">
+                <div className="pz-section-head">
+                    <h2 className="pz-section-title">Run Code in Any Language</h2>
+                    <p className="pz-section-sub">Write and execute code in 8 programming languages, directly in your browser — no installs needed.</p>
+                </div>
+                <div className="pz-lang-grid">
+                    {LANGS.map(l=>(
+                        <div key={l.key} className="pz-lang-card"
+                            style={{'--lc':l.color}}
+                            onClick={()=>scrollTo('pz-forms','create')}>
+                            <div className="pz-lang-icon" style={{background:l.bg,color:l.color}}>
+                                <i className={l.icon}></i>
+                            </div>
+                            <div className="pz-lang-name">{l.name}</div>
+                            <div className="pz-lang-badge">
+                                {l.key==='rust'
+                                    ? <><i className="fa-solid fa-eye"></i> View only</>
+                                    : <><i className="fa-solid fa-play"></i> Executable</>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+
+        {/* ── CREATE / JOIN FORMS ────────────────────────────── */}
+        <section className="pz-section pz-forms-bg" id="pz-forms">
+            <div className="pz-section-inner">
+                <div className="pz-section-head">
+                    <h2 className="pz-section-title">Start a Coding Session</h2>
+                    <p className="pz-section-sub">Create a new room or join an existing one with an 8-character code.</p>
+                </div>
+                {formError && <div className="error-msg" style={{maxWidth:840,margin:'0 auto 20px'}}><i className="fa-solid fa-circle-exclamation"></i> {formError}</div>}
+                <div className="pz-forms-grid">
+
+                    {/* Create */}
+                    <div className={'pz-form-card'+(tab==='create'?' pz-active':'')} onClick={()=>{setTab('create');setFormError('');}}>
+                        <div className="pz-form-card-hdr">
+                            <i className="fa-solid fa-plus-circle"></i>
+                            <div>
+                                <div className="pz-form-card-title">Create a Room</div>
+                                <div className="pz-form-card-sub">Start a new collaborative session</div>
+                            </div>
+                        </div>
+                        {tab==='create' && (
+                            <form className="pz-form" onSubmit={handleCreate} onClick={e=>e.stopPropagation()}>
+                                <div className="you-appear-as">
+                                    <div className="yaa-avatar" style={{background:createColor}}>
+                                        {(profile?.fullName||'?').charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="yaa-info">
+                                        <span className="yaa-label">You'll appear in the room as</span>
+                                        <span className="yaa-name">{profile?.fullName||profile?.username}</span>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label><i className="fa-solid fa-palette"></i> Cursor Color</label>
+                                    <ColorPicker id="create-color" value={createColor} onChange={setCreateColor}/>
+                                </div>
+                                <button type="submit" className="pz-btn-submit pz-btn-create">
+                                    <i className="fa-solid fa-rocket"></i> Create New Room
+                                </button>
+                            </form>
+                        )}
+                        {tab!=='create' && (
+                            <div style={{color:'var(--text-muted)',fontSize:13,display:'flex',alignItems:'center',gap:8}}>
+                                <i className="fa-solid fa-hand-pointer"></i> Click to expand
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Join */}
+                    <div className={'pz-form-card'+(tab==='join'?' pz-active':'')} onClick={()=>{setTab('join');setFormError('');}}>
+                        <div className="pz-form-card-hdr">
+                            <i className="fa-solid fa-door-open" style={{color:'#8957ff'}}></i>
+                            <div>
+                                <div className="pz-form-card-title">Join a Room</div>
+                                <div className="pz-form-card-sub">Enter a room code to collaborate</div>
+                            </div>
+                        </div>
+                        {tab==='join' && (
+                            <form className="pz-form" onSubmit={handleJoin} onClick={e=>e.stopPropagation()}>
+                                <div className="you-appear-as">
+                                    <div className="yaa-avatar" style={{background:joinColor}}>
+                                        {(profile?.fullName||'?').charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="yaa-info">
+                                        <span className="yaa-label">You'll appear in the room as</span>
+                                        <span className="yaa-name">{profile?.fullName||profile?.username}</span>
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label><i className="fa-solid fa-key"></i> Room Code</label>
+                                    <input type="text" placeholder="e.g. A1B2C3D4" maxLength={8}
+                                        value={joinRoomId} onChange={e=>setJoinRoomId(e.target.value.toUpperCase())}
+                                        style={{textTransform:'uppercase',letterSpacing:'4px',fontFamily:"'JetBrains Mono',monospace",textAlign:'center'}}/>
+                                </div>
+                                <div className="form-group">
+                                    <label><i className="fa-solid fa-palette"></i> Cursor Color</label>
+                                    <ColorPicker id="join-color" value={joinColor} onChange={setJoinColor}/>
+                                </div>
+                                <button type="submit" className="pz-btn-submit pz-btn-join">
+                                    <i className="fa-solid fa-arrow-right-to-bracket"></i> Join Room
+                                </button>
+                            </form>
+                        )}
+                        {tab!=='join' && (
+                            <div style={{color:'var(--text-muted)',fontSize:13,display:'flex',alignItems:'center',gap:8}}>
+                                <i className="fa-solid fa-hand-pointer"></i> Click to expand
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {/* ── FEATURES ───────────────────────────────────────── */}
+        <section className="pz-section">
+            <div className="pz-section-inner">
+                <div className="pz-section-head">
+                    <h2 className="pz-section-title">Everything You Need to Code Together</h2>
+                    <p className="pz-section-sub">Built for teams who want to move fast without switching tools.</p>
+                </div>
+                <div className="pz-feat-grid">
+                    {[
+                        {icon:'fa-arrow-pointer', color:'#00d4ff', bg:'rgba(0,212,255,0.1)',   title:'Live Cursors',     desc:"See every collaborator's cursor position in real-time with unique color labels."},
+                        {icon:'fa-bolt',          color:'#8957ff', bg:'rgba(137,87,255,0.1)',  title:'Instant Sync',     desc:'Every keystroke is synced via Firebase Realtime DB — zero delay, zero conflicts.'},
+                        {icon:'fa-terminal',      color:'#22c55e', bg:'rgba(34,197,94,0.1)',   title:'Built-in Console', desc:'Execute code in 8 languages and see stdout / stderr output right in the browser.'},
+                        {icon:'fa-comments',      color:'#fb923c', bg:'rgba(251,146,60,0.1)',  title:'Team Chat',        desc:'Chat with collaborators without leaving the editor. Persistent message history.'},
+                        {icon:'fa-user-check',    color:'#fbbf24', bg:'rgba(251,191,36,0.1)',  title:'Access Control',   desc:'Room creators approve or deny join requests. Returning members bypass the queue.'},
+                        {icon:'fa-gauge',         color:'#e879f9', bg:'rgba(232,121,249,0.1)', title:'Dashboard',        desc:'View your room history, track sessions, and jump back into any previous room.'},
+                    ].map(f=>(
+                        <div key={f.title} className="pz-feat-card">
+                            <div className="pz-feat-icon" style={{background:f.bg,color:f.color}}>
+                                <i className={'fa-solid '+f.icon}></i>
+                            </div>
+                            <h3 className="pz-feat-title">{f.title}</h3>
+                            <p className="pz-feat-desc">{f.desc}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+
+        {/* ── ROOM HISTORY ───────────────────────────────────── */}
+        {rooms.length > 0 && (
+            <section className="pz-section pz-forms-bg">
+                <div className="pz-section-inner">
+                    <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',flexWrap:'wrap',gap:12,marginBottom:28}}>
+                        <div>
+                            <h2 className="pz-section-title" style={{textAlign:'left',marginBottom:4}}>Recent Rooms</h2>
+                            <p className="pz-section-sub" style={{textAlign:'left'}}>Jump back into a previous session.</p>
+                        </div>
+                        <button className="pz-view-all" onClick={()=>setView('dashboard')}>
+                            <i className="fa-solid fa-gauge"></i> View All ({rooms.length})
+                        </button>
+                    </div>
+                    <div className="history-list">
+                        {rooms.slice(0,4).map(room=>(
+                            <HistoryCard key={room.roomId} room={room} onOpen={openRoom} onRemove={removeRoom}/>
+                        ))}
+                        {rooms.length > 4 && (
+                            <div style={{textAlign:'center',padding:'14px',borderTop:'1px solid var(--border)'}}>
+                                <button onClick={()=>setView('dashboard')} style={{background:'none',color:'var(--accent)',fontSize:13,cursor:'pointer',fontWeight:700}}>
+                                    <i className="fa-solid fa-chevron-down"></i> {rooms.length-4} more — Open Dashboard
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
+        )}
+
+        {/* ── FOOTER ─────────────────────────────────────────── */}
+        <footer className="pz-footer">
+            <div className="pz-footer-inner">
+                <div className="pz-logo">
+                    <div className="pz-logo-icon"><i className="fa-solid fa-code"></i></div>
+                    <div>
+                        <div className="pz-logo-name">CodeCollab</div>
+                        <div className="pz-logo-sub">Real-Time Collaborative IDE</div>
+                    </div>
+                </div>
+                <div className="pz-footer-stack">
+                    {[['fa-database','Firebase Realtime DB'],['fa-code-branch','CodeMirror 5'],['fa-brands fa-react','React 18'],['fa-terminal','Codex API']].map(([ic,lbl])=>(
+                        <span key={lbl}><i className={ic.startsWith('fa-b')?ic:'fa-solid '+ic}></i> {lbl}</span>
+                    ))}
+                </div>
+            </div>
+        </footer>
+        </>
+    );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

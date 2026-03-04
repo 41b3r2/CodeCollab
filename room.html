@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCollab</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/lib/fontawesome/css/all.min.css">
+
+    <!-- CodeMirror core -->
+    <link rel="stylesheet" href="assets/lib/codemirror/codemirror.min.css">
+    <link rel="stylesheet" href="assets/lib/codemirror/theme/dracula.min.css">
+    <link rel="stylesheet" href="assets/lib/codemirror/addon/scroll/simplescrollbars.min.css">
+    <script src="assets/lib/codemirror/codemirror.min.js"></script>
+
+    <!-- CodeMirror addons (load before modes that depend on them) -->
+    <script src="assets/lib/codemirror/addon/edit/closebrackets.min.js"></script>
+    <script src="assets/lib/codemirror/addon/edit/matchbrackets.min.js"></script>
+    <script src="assets/lib/codemirror/addon/selection/active-line.min.js"></script>
+    <script src="assets/lib/codemirror/addon/scroll/simplescrollbars.min.js"></script>
+    <script src="assets/lib/codemirror/addon/comment/comment.min.js"></script>
+    <script src="assets/lib/codemirror/addon/mode/simple.min.js"></script>
+    <script src="assets/lib/codemirror/addon/mode/multiplex.min.js"></script>
+
+    <!-- CodeMirror language modes (dependency order matters) -->
+    <!-- 1. Base modes with no dependencies -->
+    <script src="assets/lib/codemirror/mode/xml/xml.min.js"></script>
+    <script src="assets/lib/codemirror/mode/javascript/javascript.min.js"></script>
+    <script src="assets/lib/codemirror/mode/css/css.min.js"></script>
+    <script src="assets/lib/codemirror/mode/python/python.min.js"></script>
+    <script src="assets/lib/codemirror/mode/clike/clike.min.js"></script><!-- C, C++, Java -->
+    <script src="assets/lib/codemirror/mode/ruby/ruby.min.js"></script>
+    <script src="assets/lib/codemirror/mode/go/go.min.js"></script>
+    <script src="assets/lib/codemirror/mode/rust/rust.min.js"></script>
+    <!-- 2. Mixed modes that depend on xml + javascript + css -->
+    <script src="assets/lib/codemirror/mode/htmlmixed/htmlmixed.min.js"></script>
+    <!-- 3. PHP depends on htmlmixed (which requires xml, js, css) -->
+    <script src="assets/lib/codemirror/mode/php/php.min.js"></script>
+
+    <!-- Firebase 9 compat -->
+    <script src="assets/lib/firebase/firebase-app-compat.js"></script>
+    <script src="assets/lib/firebase/firebase-auth-compat.js"></script>
+    <script src="assets/lib/firebase/firebase-database-compat.js"></script>
+    <script src="assets/js/firebase-config.js"></script>
+</head>
+<body class="room-body">
+
+<!-- Auth loading overlay (shown while Firebase Auth resolves) -->
+<div class="auth-loading-overlay" id="authLoadingOverlay">
+    <div class="auth-loading-spinner"></div>
+    <span>Loading room...</span>
+</div>
+
+<!-- HEADER -->
+<header class="room-header">
+    <div class="header-left">
+        <a href="index.html" class="logo-mini" title="Back to lobby">
+            <i class="fa-solid fa-code"></i><span>CodeCollab</span>
+        </a>
+        <a href="index.html?dashboard=1" class="dashboard-nav-btn" title="Go to Dashboard">
+            <i class="fa-solid fa-gauge"></i><span>Dashboard</span>
+        </a>
+        <div class="divider-v"></div>
+        <div class="room-info">
+            <span class="room-label">ROOM</span>
+            <span class="room-code" id="roomCodeSpan"></span>
+            <button class="icon-btn" title="Copy room code" onclick="copyRoomCode()">
+                <i class="fa-regular fa-copy" id="copyIcon"></i>
+            </button>
+        </div>
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot connecting"></span>
+            <span class="status-text">Connecting...</span>
+        </div>
+    </div>
+
+    <div class="header-center">
+        <div class="file-tab active">
+            <i class="fa-solid fa-file-code"></i>
+            <span id="fileTabName">main.js</span>
+        </div>
+    </div>
+
+    <div class="header-right">
+        <div class="lang-select-wrap">
+            <i class="fa-solid fa-code"></i>
+            <select id="langSelect" onchange="changeLanguage(this.value)">
+                <optgroup label="⚡ Runs in Console">
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="c">C</option>
+                    <option value="cpp">C++</option>
+                    <option value="java">Java</option>
+                    <option value="php">PHP</option>
+                    <option value="ruby">Ruby</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                </optgroup>
+                <optgroup label="📄 View Only">
+                    <option value="htmlmixed">HTML</option>
+                    <option value="css">CSS</option>
+                </optgroup>
+            </select>
+        </div>
+        <button class="icon-btn" id="themeBtn" title="Toggle Theme" onclick="toggleTheme()">
+            <i class="fa-solid fa-moon"></i>
+        </button>
+        <button class="run-btn" id="runBtn" onclick="runCode()" title="Run (Ctrl+Enter)">
+            <i class="fa-solid fa-play"></i><span>Run</span>
+        </button>
+        <button class="delete-room-btn" id="deleteRoomBtn" onclick="deleteRoom()" title="Delete Room (Creator only)" style="display:none">
+            <i class="fa-solid fa-trash"></i><span>Delete Room</span>
+        </button>
+        <div class="user-avatar-wrap" id="userAvatarWrap">
+            <span class="user-avatar-initial" id="userAvatarInitial"></span>
+            <span class="user-avatar-name" id="userAvatarName"></span>
+        </div>
+        <div class="active-users" id="activeUsers"></div>
+    </div>
+</header>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span><i class="fa-solid fa-users"></i> Collaborators</span>
+            <span class="sidebar-count" id="userCount">0</span>
+        </div>
+        <div class="user-list" id="userList"></div>
+
+        <div class="sidebar-section-title"><i class="fa-solid fa-comment-dots"></i> Chat</div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="chat-input-wrap">
+            <input type="text" id="chatInput" placeholder="Message..." maxlength="200">
+            <button onclick="sendChat()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+
+        <div class="sidebar-section-title" style="margin-top:8px;">
+            <i class="fa-solid fa-circle-info"></i> Room Info
+        </div>
+        <div class="room-info-box">
+            <div class="info-row">
+                <span>Room Code</span>
+                <code id="infoRoomCode"></code>
+            </div>
+            <div class="info-row">
+                <span>You</span>
+                <code id="infoUsername"></code>
+            </div>
+            <button class="share-btn" onclick="shareRoom()">
+                <i class="fa-solid fa-share-nodes"></i> Share Room Link
+            </button>
+        </div>
+    </aside>
+
+    <!-- Editor Area (left + right pane) -->
+    <div class="editor-area" id="editorArea">
+
+        <!-- LEFT: code editor -->
+        <div class="editor-pane" id="editorPane">
+            <div class="editor-toolbar">
+                <div class="toolbar-left">
+                    <button class="tool-btn" title="Toggle sidebar (Ctrl+B)" onclick="toggleSidebar()">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <span class="toolbar-info" id="cursorInfo">Ln 1, Col 1</span>
+                    <span class="toolbar-info typing-indicator" id="typingIndicator" style="display:none;">
+                        <span class="typing-dots"><span></span><span></span><span></span></span>
+                        someone is typing...
+                    </span>
+                </div>
+                <div class="toolbar-right">
+                    <button class="tool-btn" title="Clear editor"  onclick="clearEditor()"><i class="fa-solid fa-trash"></i></button>
+                    <button class="tool-btn" title="Auto indent"   onclick="autoIndent()"><i class="fa-solid fa-align-left"></i></button>
+                    <button class="tool-btn" title="Copy all"      onclick="copyAll()"><i class="fa-regular fa-copy"></i></button>
+                    <button class="tool-btn" title="Download"      onclick="downloadCode()"><i class="fa-solid fa-download"></i></button>
+                </div>
+            </div>
+
+            <div class="cm-wrapper" id="cmWrapper">
+                <textarea id="codeEditor"></textarea>
+            </div>
+        </div>
+
+        <!-- VERTICAL resize handle -->
+        <div class="v-resize-handle" id="resizeHandle" title="Drag to resize">
+            <div class="v-resize-dots"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        </div>
+
+        <!-- RIGHT: console / output pane -->
+        <div class="console-panel" id="consolePanel">
+            <div class="console-header">
+                <div class="console-tabs">
+                    <button class="console-tab active" id="tabOutput" onclick="switchConsoleTab('output')">
+                        <i class="fa-solid fa-terminal"></i> Output
+                    </button>
+                    <button class="console-tab" id="tabErrors" onclick="switchConsoleTab('errors')">
+                        <i class="fa-solid fa-circle-exclamation"></i> Errors
+                        <span class="error-badge" id="errorBadge" style="display:none">0</span>
+                    </button>
+                </div>
+                <div class="console-actions">
+                    <button class="icon-btn" title="Clear console" onclick="clearConsole()">
+                        <i class="fa-solid fa-ban"></i>
+                    </button>
+                    <button class="icon-btn" id="consoleToggleBtn" title="Toggle output panel (Ctrl+`)" onclick="toggleConsole()">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="console-output" id="consoleOutput">
+                <div class="console-welcome">
+                    <i class="fa-solid fa-terminal"></i>
+                    &nbsp; Console ready. Press <kbd>Ctrl+Enter</kbd> or click <strong>Run</strong> to execute.
+                </div>
+            </div>
+            <!-- Terminal-style inline stdin row -->
+            <div class="term-input-row" id="termInputRow" style="display:none">
+                <span class="term-prompt">&gt;</span>
+                <input id="termInput" type="text" class="term-input-field"
+                    placeholder="Pre-queue additional stdin (press Enter to add)..."
+                    onkeydown="handleTermInput(event)"
+                    autocomplete="off" spellcheck="false"/>
+                <span class="term-queue-badge" id="termQueueBadge" style="display:none"></span>
+                <button class="term-clear-btn" id="termClearBtn" onclick="clearStdinQueue()" style="display:none" title="Clear queued inputs">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+
+</div>
+
+<!-- ── Waiting Overlay (non-creator awaiting approval) ── -->
+<div class="waiting-overlay" id="waitingOverlay" style="display:none">
+    <div class="waiting-card">
+        <div class="waiting-spinner" id="waitingSpinner"></div>
+        <h3 id="waitingTitle">Waiting for Approval</h3>
+        <p id="waitingMsg">The room creator needs to approve your request to join <strong>Room <span id="waitingRoomCode"></span></strong>.</p>
+        <small>You'll be let in automatically once approved.</small>
+        <a href="index.html" class="btn-cancel-wait"><i class="fa-solid fa-arrow-left"></i> Cancel</a>
+    </div>
+</div>
+
+<!-- ── Room Deleted Overlay ── -->
+<div class="waiting-overlay" id="roomDeletedOverlay" style="display:none">
+    <div class="waiting-card">
+        <div style="font-size:2.5rem;margin-bottom:16px;">🗑️</div>
+        <h3>Room Deleted</h3>
+        <p>The room creator has closed this room. All data has been removed.</p>
+        <p style="margin-top:8px;opacity:.7;font-size:.85rem">Redirecting in <span id="deleteCountdown">3</span>s…</p>
+        <a href="index.html" class="btn-cancel-wait"><i class="fa-solid fa-arrow-left"></i> Back to Lobby</a>
+    </div>
+</div>
+
+<!-- ── Kicked Overlay ── -->
+<div class="waiting-overlay" id="kickedOverlay" style="display:none">
+    <div class="waiting-card">
+        <div style="font-size:2.5rem;margin-bottom:16px;">🚫</div>
+        <h3>You've Been Removed</h3>
+        <p>The room creator has removed you from this room.</p>
+        <p style="margin-top:8px;opacity:.7;font-size:.85rem">Redirecting in <span id="kickCountdown">3</span>s…</p>
+        <a href="index.html" class="btn-cancel-wait"><i class="fa-solid fa-arrow-left"></i> Back to Lobby</a>
+    </div>
+</div>
+
+<!-- ── Approval Panel (creator only — incoming join requests) ── -->
+<div class="approval-panel" id="approvalPanel">
+    <div class="approval-header">
+        <i class="fa-solid fa-user-clock"></i> Join Requests
+        <span class="approval-badge" id="approvalCount">0</span>
+    </div>
+    <div id="approvalList"></div>
+</div>
+
+<!-- ── Firebase Auth guard: sets APP_* globals then loads room.js ── -->
+<script>
+(function () {
+    var _rawRoom = (new URLSearchParams(location.search).get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!_rawRoom) { location.href = 'index.html'; return; }
+
+    firebase.auth().onAuthStateChanged(async function (user) {
+        if (!user) {
+            location.href = 'auth.html?redirect=' + encodeURIComponent(location.href);
+            return;
+        }
+
+        // DB read with 5-second timeout so a hanging read can't block the room
+        function dbReadWithTimeout(ref, ms) {
+            return Promise.race([
+                ref.once('value'),
+                new Promise(function(_, rej) {
+                    setTimeout(function() { rej(new Error('DB read timed out')); }, ms);
+                })
+            ]);
+        }
+
+        // Load profile from Firebase
+        var prof = {};
+        try {
+            var profSnap = await dbReadWithTimeout(
+                firebase.database().ref('users/' + user.uid + '/profile'), 5000
+            );
+            prof = profSnap.val() || {};
+        } catch (e) {
+            console.warn('[CodeCollab] Profile read failed, using defaults:', e.message);
+        }
+        var username = prof.username || user.displayName || (user.email ? user.email.split('@')[0] : 'User');
+        var color    = prof.color    || '#00d4ff';
+
+        // Determine creator: flag set by lobby OR matches stored creatorUid
+        var isCreatorFlag = sessionStorage.getItem('cc_is_creator') === '1';
+        sessionStorage.removeItem('cc_is_creator');
+        var isCreator = isCreatorFlag;
+        if (!isCreator) {
+            try {
+                var metaSnap = await dbReadWithTimeout(
+                    firebase.database().ref('rooms/' + _rawRoom + '/meta'), 5000
+                );
+                var meta = metaSnap.val();
+                isCreator = !!(meta && meta.creatorUid === user.uid);
+            } catch (e) {
+                console.warn('[CodeCollab] Meta read failed:', e.message);
+            }
+        }
+
+        // Set globals used by room.js
+        window.APP_ROOM_ID    = _rawRoom;
+        window.APP_USERNAME   = username;
+        window.APP_COLOR      = color;
+        window.APP_USER_ID    = user.uid;
+        window.APP_IS_CREATOR = isCreator;
+
+        // Populate static DOM elements
+        document.title = 'Room ' + _rawRoom + ' — CodeCollab';
+        document.getElementById('roomCodeSpan').textContent  = _rawRoom;
+        document.getElementById('infoRoomCode').textContent  = _rawRoom;
+        document.getElementById('infoUsername').textContent  = username;
+        document.getElementById('waitingRoomCode').textContent = _rawRoom;
+        var aw = document.getElementById('userAvatarWrap');
+        aw.style.borderColor = color;
+        document.getElementById('userAvatarInitial').style.background = color;
+        document.getElementById('userAvatarInitial').textContent = username.charAt(0).toUpperCase();
+        document.getElementById('userAvatarName').textContent = username;
+
+        // Show delete button for creator
+        if (isCreator) document.getElementById('deleteRoomBtn').style.display = 'flex';
+
+        // Hide auth overlay and load room.js
+        document.getElementById('authLoadingOverlay').style.display = 'none';
+        var s = document.createElement('script');
+        s.src = 'assets/js/room.js';
+        document.body.appendChild(s);
+    });
+})();
+</script>
+
+<style>
+.remote-cursor {
+    position: absolute;
+    width: 2px;
+    border-left: 2px solid;
+    height: 1.2em;
+    pointer-events: none;
+    z-index: 100;
+    margin-top: 1px;
+}
+.remote-cursor-label {
+    position: absolute;
+    top: -1.5em;
+    left: -1px;
+    font-size: 10px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px 3px 3px 0;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 101;
+    color: #000;
+    line-height: 1.4;
+}
+
+/* ── Dashboard Nav Button ── */
+.dashboard-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: rgba(0,212,255,0.06);
+    border: 1px solid rgba(0,212,255,0.18);
+    border-radius: var(--radius-sm);
+    padding: 5px 12px;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.dashboard-nav-btn i { color: var(--accent); font-size: 11px; }
+.dashboard-nav-btn:hover { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.35); color: var(--text-primary); }
+
+/* ── Waiting Overlay ── */
+.waiting-overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,10,20,0.93);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(8px);
+}
+.waiting-card {
+    background: #1a1a2e;
+    border: 1px solid rgba(0,212,255,0.25);
+    border-radius: 16px;
+    padding: 44px 52px;
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.waiting-spinner {
+    width: 52px; height: 52px;
+    border: 3px solid rgba(0,212,255,0.15);
+    border-top-color: #00d4ff;
+    border-radius: 50%;
+    animation: wSpin 1s linear infinite;
+    margin: 0 auto 22px;
+}
+@keyframes wSpin { to { transform: rotate(360deg); } }
+.waiting-card h3 { color: #e2e8f0; margin: 0 0 10px; font-size: 1.35rem; font-weight: 700; }
+.waiting-card p  { color: #94a3b8; margin: 0 0 12px; font-size: .9rem; line-height: 1.6; }
+.waiting-card small { color: #64748b; font-size: .8rem; }
+.btn-cancel-wait {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 22px; padding: 9px 22px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #94a3b8; text-decoration: none;
+    font-size: .85rem; cursor: pointer;
+    transition: background .2s;
+}
+.btn-cancel-wait:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+
+/* ── Approval Panel ── */
+.approval-panel {
+    position: fixed; top: 68px; right: 18px;
+    background: #1a1a2e;
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 12px;
+    padding: 12px 14px;
+    z-index: 1000;
+    min-width: 290px;
+    max-width: 350px;
+    box-shadow: 0 8px 36px rgba(0,0,0,0.5);
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+}
+.approval-header {
+    display: flex; align-items: center; gap: 8px;
+    color: #00d4ff; font-size: .82rem; font-weight: 700;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 2px;
+    text-transform: uppercase; letter-spacing: .5px;
+}
+.approval-badge {
+    background: #f43f5e; color: #fff;
+    border-radius: 10px; padding: 1px 8px;
+    font-size: .72rem; font-weight: 700;
+    margin-left: auto;
+}
+.approval-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 6px; border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+}
+.apr-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .82rem; color: #000; flex-shrink: 0;
+}
+.apr-name { flex: 1; color: #e2e8f0; font-size: .85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apr-btn {
+    padding: 4px 11px; border: none; border-radius: 6px;
+    font-size: .75rem; cursor: pointer; font-weight: 600;
+    transition: opacity .2s;
+}
+.apr-btn:hover { opacity: .8; }
+.apr-btn.approve { background: #22c55e; color: #fff; }
+.apr-btn.deny    { background: #f43f5e; color: #fff; }
+
+/* ── Kick Button ── */
+.kick-btn {
+    background: none; border: none;
+    color: #f43f5e; cursor: pointer;
+    padding: 3px 7px; border-radius: 4px;
+    font-size: .8rem; opacity: 0;
+    transition: opacity .2s, background .2s;
+    flex-shrink: 0;
+}
+.user-item:hover .kick-btn { opacity: 1; }
+.kick-btn:hover { background: rgba(244,63,94,0.15); }
+
+/* ── Creator Crown ── */
+.u-crown { color: #fbbf24; font-size: .72rem; margin-right: 3px; flex-shrink: 0; }
+</style>
+</body>
+</html>
